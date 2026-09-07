@@ -89,6 +89,22 @@ def render_notes(version: str, commits: list[tuple[str, str]], summary_text: str
     return "\n".join(lines)
 
 
+def ensure_single_trailing_newline(text: str) -> str:
+    return text.rstrip("\n") + "\n"
+
+
+def read_summary_text(summary_file: Path) -> str:
+    if not summary_file.exists():
+        return ""
+
+    raw_summary = summary_file.read_text(encoding="utf-8")
+    normalized_summary = ensure_single_trailing_newline(raw_summary)
+    if raw_summary != normalized_summary:
+        summary_file.write_text(normalized_summary, encoding="utf-8")
+
+    return normalized_summary.strip()
+
+
 def replace_version(new_version: str) -> None:
     pyproject = ROOT / "pyproject.toml"
     init_py = ROOT / "ai_todo" / "__init__.py"
@@ -130,10 +146,10 @@ def main() -> int:
     version = next_version(last_tag, bump, args.beta)
 
     summary_file = ROOT / "release" / "AI_RELEASE_SUMMARY.md"
-    file_summary = summary_file.read_text(encoding="utf-8").strip() if summary_file.exists() else ""
+    file_summary = read_summary_text(summary_file)
     summary_text = "\n\n".join(filter(None, [args.summary.strip(), file_summary]))
 
-    notes = render_notes(version, commits, summary_text)
+    notes = ensure_single_trailing_newline(render_notes(version, commits, summary_text))
     (ROOT / "release" / "RELEASE_NOTES.md").write_text(notes, encoding="utf-8")
 
     replace_version(version)
